@@ -20,7 +20,20 @@ else:
     print("ERROR: GOOGLE_API_KEY not found in .env file!")
 
 genai.configure(api_key=api_key)
-model = genai.GenerativeModel('models/gemini-1.5-flash')
+
+# Dynamically pick the best flash model the API key actually has access to
+default_model_name = 'models/gemini-pro' # Ultimate fallback
+try:
+    for m in genai.list_models():
+        if 'generateContent' in m.supported_generation_methods:
+            if 'flash' in m.name and 'vision' not in m.name:
+                default_model_name = m.name
+                break
+except Exception as e:
+    print(f"Warning: Could not list models ({e}), falling back to {default_model_name}")
+
+print(f"SUCCESS: Bound AI to model: {default_model_name}")
+model = genai.GenerativeModel(default_model_name)
 
 app = FastAPI()
 app.add_middleware(
@@ -72,4 +85,4 @@ async def generate_reason(request: ReasonRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
